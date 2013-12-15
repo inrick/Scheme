@@ -46,6 +46,8 @@ parseQuoted = do
 
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
+        -- Numbers, booleans and characters are all prefixed with #.
+        -- Use try to backtrack when needed.
         <|> try parseNumber
         <|> try parseBool
         <|> try parseChar
