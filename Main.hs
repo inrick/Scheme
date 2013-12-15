@@ -30,12 +30,31 @@ data LispVal = Atom String
              | Bool Bool
   deriving (Show)
 
+parseList :: Parser LispVal
+parseList = List <$> sepBy parseExpr spaces
+
+parseDottedList :: Parser LispVal
+parseDottedList = DottedList
+  <$> endBy parseExpr spaces
+  <*> (char '.' *> spaces *> parseExpr)
+
+parseQuoted :: Parser LispVal
+parseQuoted = do
+  char '\''
+  x <- parseExpr
+  return $ List [Atom "quote", x]
+
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
         <|> try parseNumber
         <|> try parseBool
         <|> try parseChar
         <|> parseString
+        <|> parseQuoted
+        <|> do char '('
+               x <- try parseList <|> parseDottedList
+               char ')'
+               return x
 
 parseAtom :: Parser LispVal
 parseAtom = do
