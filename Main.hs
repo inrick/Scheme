@@ -61,7 +61,7 @@ parseNumber = do
   case exactness of
     Just 'i' -> inexact radix
     Just 'e' -> exact radix
-    Nothing  -> try (inexact radix) <|> exact radix
+    Nothing  -> unspec radix
   where
     exStr = "ei"    -- Possible exactness prefixes
     raStr = "bdox"  -- Possible radix prefixes
@@ -88,6 +88,10 @@ parseNumber = do
       | r == Nothing ||
         r == Just 'd' = parseFloat
       | otherwise     = error "invalid radix for inexact numbers"  -- TODO
+    unspec r  -- When exactness is unspecified
+      | r == Nothing ||
+        r == Just 'd' = try (inexact r) <|> exact r
+      | otherwise     = exact r
     parseDec = read <$> many1 digit
     parseBin = do
       n <- many $ oneOf "01"
