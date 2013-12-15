@@ -51,10 +51,10 @@ parseExpr = parseAtom
         <|> try parseChar
         <|> parseString
         <|> parseQuoted
-        <|> do char '('
-               x <- try parseList <|> parseDottedList
-               char ')'
-               return x
+        <|> between
+              (char '(')
+              (char ')')
+              (try parseList <|> parseDottedList)
 
 parseAtom :: Parser LispVal
 parseAtom = do
