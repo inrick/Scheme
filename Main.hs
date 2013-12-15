@@ -1,7 +1,7 @@
 module Main where
 
 import Data.Char (digitToInt)
-import Control.Applicative (liftA, pure, (<$>), (<*>))
+import Control.Applicative (liftA, pure, (<$>), (<*>), (*>))
 import System.Environment
 import Text.ParserCombinators.Parsec hiding (spaces)
 import Numeric (readFloat, readHex, readOct, readInt)
@@ -70,11 +70,11 @@ parseNumber = do
       x <- oneOf $ exStr ++ raStr
       if x `elem` exStr then do
         let exactness = Just x
-        radix <- optionMaybe . try $ char '#' >> oneOf raStr
+        radix <- optionMaybe . try $ char '#' *> oneOf raStr
         return (exactness, radix)
       else do
         let radix = Just x
-        exactness <- optionMaybe . try $ char '#' >> oneOf exStr
+        exactness <- optionMaybe . try $ char '#' *> oneOf exStr
         return (exactness, radix)
     inexact r = Float  <$> inexactRadix r
     exact   r = Number <$> exactRadix r
@@ -117,8 +117,8 @@ parseChar :: Parser LispVal
 parseChar = do
   char '#'
   char '\\'
-  Char <$> ((string "space" >> return ' ')
-             <|> (string "newline" >> return '\n')
+  Char <$> ((string "space" *> return ' ')
+             <|> (string "newline" *> return '\n')
              <|> anyChar)
 
 parseString :: Parser LispVal
@@ -129,8 +129,8 @@ parseString = do
   return $ String s
   where
     parseEscapeSeq = char '\\'
-                  >> (char '"'
+                  *> (char '"'
                   <|> char '\\'
-                  <|> (char 'n' >> return '\n')
-                  <|> (char 'r' >> return '\r')
-                  <|> (char 't' >> return '\t'))
+                  <|> (char 'n' *> return '\n')
+                  <|> (char 'r' *> return '\r')
+                  <|> (char 't' *> return '\t'))
