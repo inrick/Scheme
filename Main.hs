@@ -132,7 +132,7 @@ parseNumber = do
       let [(m,"")] = readHex n
       return m
     parseFloat = do
-      x <- many1 digit
+      x <- option "0" $ many1 digit
       char '.'
       y <- many1 digit
       let [(f,"")] = readFloat $ x ++ "." ++ y
