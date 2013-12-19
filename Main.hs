@@ -116,7 +116,7 @@ parseNumber = do
       n <- many $ oneOf "01"
       let [(m,"")] = readBin n
       return m
-        where readBin = readInt 2 (flip elem "01") digitToInt
+        where readBin = readInt 2 (`elem` "01") digitToInt
     parseOct = do
       n <- many1 octDigit
       let [(m,"")] = readOct n
