@@ -113,7 +113,7 @@ parseNumber = do
       | otherwise     = exact r
     parseDec = read <$> many1 digit
     parseBin = do
-      n <- many $ oneOf "01"
+      n <- many1 $ oneOf "01"
       let [(m,"")] = readBin n
       return m
         where readBin = readInt 2 (`elem` "01") digitToInt
