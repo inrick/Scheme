@@ -38,11 +38,15 @@ parseDottedList = DottedList
   <$> endBy parseExpr spaces
   <*> (char '.' *> spaces *> parseExpr)
 
-parseQuoted :: Parser LispVal
-parseQuoted = do
-  char '\''
+quote :: Char -> String -> Parser LispVal
+quote c atom = do
+  char c
   x <- parseExpr
-  return $ List [Atom "quote", x]
+  return $ List [Atom atom, x]
+
+parseQuoted      = quote '\'' "quote"
+parseQuasiquoted = quote '`'  "quasiquote"
+parseUnquoted    = quote ','  "unquote"
 
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
@@ -53,6 +57,8 @@ parseExpr = parseAtom
         <|> try parseChar
         <|> parseString
         <|> parseQuoted
+        <|> parseQuasiquoted
+        <|> parseUnquoted
         <|> between
               (char '(')
               (char ')')
