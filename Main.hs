@@ -78,25 +78,23 @@ parseBool = do char '#'
 -- TODO implement more numeric types
 parseNumber :: Parser LispVal
 parseNumber = do
-  (exactness, radix) <- try prefix <|> return (Nothing, Nothing)
+  (exactness, radix) <- prefix
   case exactness of
     Just 'i' -> inexact radix
     Just 'e' -> exact radix
     Nothing  -> unspec radix
   where
-    exStr = "ei"    -- Possible exactness prefixes
-    raStr = "bdox"  -- Possible radix prefixes
     prefix = do
-      char '#'
-      x <- oneOf $ exStr ++ raStr
-      if x `elem` exStr then do
-        let exactness = Just x
-        radix <- optionMaybe . try $ char '#' *> oneOf raStr
-        return (exactness, radix)
-      else do
-        let radix = Just x
-        exactness <- optionMaybe . try $ char '#' *> oneOf exStr
-        return (exactness, radix)
+      do exactness <- try parseExactness
+         radix     <- maybeRadix
+         return (Just exactness, radix)
+      <|> do radix     <- maybeRadix
+             exactness <- maybeExactness
+             return (exactness, radix)
+    parseRadix     = char '#' *> oneOf "bdox"  -- Possible radix prefixes
+    parseExactness = char '#' *> oneOf "ei"    -- Possible exactness prefixes
+    maybeRadix     = optionMaybe . try $ parseRadix
+    maybeExactness = optionMaybe . try $ parseExactness
     inexact r = Float  <$> inexactRadix r
     exact   r = Number <$> exactRadix r
     exactRadix r
