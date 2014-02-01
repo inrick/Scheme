@@ -12,13 +12,16 @@ main = putStrLn . readExpr . (!! 0) =<< getArgs
 symbol :: Parser Char
 symbol = oneOf "!$&|*+-/:<=?>@^_~"
 
-readExpr :: String -> String
+readExpr :: String -> LispVal
 readExpr input = case parse parseExpr "lisp" input of
-  Left  err -> "No match: " ++ show err
-  Right val -> "Found value: " ++ show val
+  Left  err -> String $ "No match: " ++ show err
+  Right val -> val
 
 spaces :: Parser ()
 spaces = skipMany1 space
+
+unwordsList :: [LispVal] -> String
+unwordsList = unwords . map show
 
 data LispVal = Atom String
              | List [LispVal]
@@ -28,7 +31,18 @@ data LispVal = Atom String
              | Char Char
              | String String
              | Bool Bool
-  deriving (Show)
+
+instance Show LispVal where
+  show (Atom s)          = s
+  show (List xs)         = "(" ++ (unwordsList xs)
+                           ++ ")"
+  show (DottedList xs y) = "(" ++ show (List xs) ++ " . " ++ show y ++ ")"
+  show (Number n)        = show n
+  show (Float f)         = show f
+  show (Char c)          = show c
+  show (String s)        = "\"" ++ s ++ "\""
+  show (Bool True)       = "#t"
+  show (Bool False)      = "#f"
 
 parseList :: Parser LispVal
 parseList = List <$> sepBy parseExpr spaces
