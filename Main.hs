@@ -116,40 +116,50 @@ parseNumber = do
       <|> do radix     <- maybeRadix
              exactness <- maybeExactness
              return (exactness, radix)
+
     parseRadix     = char '#' *> oneOf "bdox"  -- Possible radix prefixes
     parseExactness = char '#' *> oneOf "ei"    -- Possible exactness prefixes
     maybeRadix     = optionMaybe . try $ parseRadix
     maybeExactness = optionMaybe . try $ parseExactness
+
     inexact r = Float  <$> inexactRadix r
     exact   r = Number <$> exactRadix r
+
     exactRadix r
       | r == Nothing ||
         r == Just 'd' = parseDec
       | r == Just 'b' = parseBin
       | r == Just 'o' = parseOct
       | r == Just 'x' = parseHex
+
     inexactRadix r
       | r == Nothing ||
         r == Just 'd' = parseFloat
       | otherwise     = error "invalid radix for inexact numbers"  -- TODO
+
     unspec r  -- When exactness is unspecified
       | r == Nothing ||
         r == Just 'd' = try (inexact r) <|> exact r
       | otherwise     = exact r
+
     parseDec = read <$> many1 digit
+
     parseBin = do
       n <- many1 $ oneOf "01"
       let [(m,"")] = readBin n
       return m
         where readBin = readInt 2 (`elem` "01") digitToInt
+
     parseOct = do
       n <- many1 octDigit
       let [(m,"")] = readOct n
       return m
+
     parseHex = do
       n <- many1 hexDigit
       let [(m,"")] = readHex n
       return m
+
     parseFloat = do
       x <- option "0" $ many1 digit
       _ <- char '.'
