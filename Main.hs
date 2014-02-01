@@ -54,13 +54,18 @@ parseDottedList = DottedList
 
 quote :: Char -> String -> Parser LispVal
 quote c atom = do
-  char c
+  _ <- char c
   x <- parseExpr
   return $ List [Atom atom, x]
 
-parseQuoted      = quote '\'' "quote"
-parseQuasiquoted = quote '`'  "quasiquote"
-parseUnquoted    = quote ','  "unquote"
+parseQuoted :: Parser LispVal
+parseQuoted = quote '\'' "quote"
+
+parseQuasiquoted :: Parser LispVal
+parseQuasiquoted = quote '`' "quasiquote"
+
+parseUnquoted :: Parser LispVal
+parseUnquoted = quote ',' "unquote"
 
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
@@ -89,7 +94,7 @@ parseAtom = do
   return $ Atom atom
 
 parseBool :: Parser LispVal
-parseBool = do char '#'
+parseBool = do _ <- char '#'
                b <- oneOf "ft"
                return $ case b of
                             'f' -> Bool False
@@ -147,24 +152,24 @@ parseNumber = do
       return m
     parseFloat = do
       x <- option "0" $ many1 digit
-      char '.'
+      _ <- char '.'
       y <- many1 digit
       let [(f,"")] = readFloat $ x ++ "." ++ y
       return f
 
 parseChar :: Parser LispVal
 parseChar = do
-  char '#'
-  char '\\'
+  _ <- char '#'
+  _ <- char '\\'
   Char <$> ((string "space" *> return ' ')
              <|> (string "newline" *> return '\n')
              <|> anyChar)
 
 parseString :: Parser LispVal
 parseString = do
-  char '"'
+  _ <- char '"'
   s <- many $ noneOf "\"\\" <|> parseEscapeSeq
-  char '"'
+  _ <- char '"'
   return $ String s
   where
     parseEscapeSeq = char '\\'
