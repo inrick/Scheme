@@ -14,6 +14,11 @@ eval val@(Float  _) = return val
 eval val@(Char   _) = return val
 eval val@(String _) = return val
 eval (List [Atom "quote", val]) = return val
+eval (List [Atom "if", cond, thenBranch, elseBranch]) = do
+  result <- eval cond
+  case result of
+    Bool False -> eval elseBranch
+    _          -> eval thenBranch
 eval (List (Atom f : args)) = apply f =<< mapM eval args
 eval invalid = throwError $ BadSpecialForm "Unrecognized special form" invalid
 
