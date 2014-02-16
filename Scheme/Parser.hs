@@ -114,7 +114,7 @@ parseNumber = do
     inexactRadix r
       | r == Nothing ||
         r == Just 'd' = parseFloat
-      | otherwise     = error "invalid radix for inexact numbers"  -- TODO
+      | otherwise     = error "Invalid radix for inexact numbers"  -- TODO
 
     unspec r  -- When exactness is unspecified
       | r == Nothing ||
