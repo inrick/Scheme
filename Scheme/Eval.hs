@@ -1,6 +1,7 @@
 module Scheme.Eval where
 
 import qualified Data.Map as M
+import Control.Applicative ((<$>), (<*>))
 import Control.Monad.Error
 
 import Scheme.Error
