@@ -1,7 +1,7 @@
 module Scheme.Parser (readExpr) where
 
 import Data.Char (digitToInt)
-import Control.Applicative (liftA, pure, (<$>), (<*>), (*>))
+import Control.Applicative ((<$>), (<*>), (*>))
 import Control.Monad.Error
 import Text.ParserCombinators.Parsec hiding (spaces)
 import Numeric (readFloat, readHex, readOct, readInt)
