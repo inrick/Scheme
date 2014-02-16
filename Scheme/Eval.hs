@@ -42,11 +42,11 @@ primitives = M.fromList [("+",              numBinop (+)),
                          ("number?",        isNum),
                          ("string?",        isString),
                          ("symbol?",        isSym),
+                         ("symbol->string", sym2str),
+                         ("string->symbol", str2sym),
                          ("not",            lispNot),
                          ("car",            car),
-                         ("cdr",            cdr),
-                         ("symbol->string", sym2str),
-                         ("string->symbol", str2sym)]
+                         ("cdr",            cdr)]
   where
     isBool [Bool _] = return $ Bool True
     isBool [_]      = return $ Bool False
