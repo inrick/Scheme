@@ -2,18 +2,20 @@ module Scheme.Parser (readExpr) where
 
 import Data.Char (digitToInt)
 import Control.Applicative (liftA, pure, (<$>), (<*>), (*>))
+import Control.Monad.Error
 import Text.ParserCombinators.Parsec hiding (spaces)
 import Numeric (readFloat, readHex, readOct, readInt)
 
+import Scheme.Error
 import Scheme.Data
 
 symbol :: Parser Char
 symbol = oneOf "!$&|*+-/:<=?>@^_~"
 
-readExpr :: String -> LispVal
+readExpr :: String -> ThrowsError LispVal
 readExpr input = case parse parseExpr "lisp" input of
-  Left  err -> String $ "No match: " ++ show err
-  Right val -> val
+  Left  err -> throwError . Parser $ err
+  Right val -> return val
 
 spaces :: Parser ()
 spaces = skipMany1 space
