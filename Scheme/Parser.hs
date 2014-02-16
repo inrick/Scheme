@@ -75,6 +75,7 @@ parseBool = do _ <- char '#'
                return $ case b of
                             'f' -> Bool False
                             't' -> Bool True
+                            _   -> error "Cannot happen"
 
 -- TODO implement more numeric types
 parseNumber :: Parser LispVal
@@ -84,6 +85,7 @@ parseNumber = do
     Just 'i' -> inexact radix
     Just 'e' -> exact radix
     Nothing  -> unspec radix
+    Just _   -> error "cannot happen"
   where
     prefix = do
       do exactness <- try parseExactness
@@ -107,6 +109,7 @@ parseNumber = do
       | r == Just 'b' = parseBin
       | r == Just 'o' = parseOct
       | r == Just 'x' = parseHex
+      | otherwise     = error $ "exactRadix called with: " ++ show r
 
     inexactRadix r
       | r == Nothing ||
