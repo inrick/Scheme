@@ -61,6 +61,7 @@ primitives = M.fromList [("+",              numBinop (+)),
                          ("string>=?",      strBoolBinop (>=)),
                          ("car",            car),
                          ("cdr",            cdr),
+                         ("cons",           cons),
                          ("eq?",            eqv),
                          ("eqv?",           eqv),
                          ("equal?",         equal)]
