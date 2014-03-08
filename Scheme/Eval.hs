@@ -140,18 +140,19 @@ cons [x, DottedList xs y] = return $ DottedList (x:xs) y
 cons [xs, y]              = return $ DottedList [xs] y
 cons args                 = throwError $ NumArgs 2 args
 
+listEq :: ([a] -> ThrowsError LispVal) -> [a] -> [a] -> Bool
+listEq eq xs ys = (length xs == length ys) && (and $ zipWith pairEq xs ys)
+  where pairEq x y = case eq [x, y] of
+                       Left _ -> False
+                       Right (Bool val) -> val
+                       Right _ -> error "Error in pairEq"
+
 eqv :: [LispVal] -> ThrowsError LispVal
 eqv [Bool   x, Bool   y] = return . Bool $ x == y
 eqv [Number x, Number y] = return . Bool $ x == y
 eqv [String x, String y] = return . Bool $ x == y
 eqv [Atom   x, Atom   y] = return . Bool $ x == y
-eqv [List  xs, List  ys] = return . Bool $ (length xs == length ys) &&
-                                           (and $ zipWith eqvPair xs ys)
-    where
-      eqvPair x y = case eqv [x, y] of
-                      Left _ -> False
-                      Right (Bool val) -> val
-                      Right _ -> error "Error in eqvPair"
+eqv [List  xs, List  ys] = return . Bool $ listEq eqv xs ys
 eqv [DottedList xs x, DottedList ys y] = eqv [List (x:xs), List (y:ys)]
 eqv [_, _] = return $ Bool False
 eqv args = throwError $ NumArgs 2 args
@@ -178,6 +179,8 @@ unpackEquals x y (Unpacker unpacker) =
   `catchError` (const $ return False)
 
 equal :: [LispVal] -> ThrowsError LispVal
+equal [List xs, List ys] = return . Bool $ listEq equal xs ys
+equal [DottedList xs x, DottedList ys y] = equal [List (x:xs), List (y:ys)]
 equal [x, y] = do
   primitiveEquals <- liftM or . mapM (unpackEquals x y) $
                     [Unpacker unpackNum,
