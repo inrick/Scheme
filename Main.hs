@@ -1,14 +1,12 @@
 module Main where
 
-import Control.Monad (liftM)
 import System.Environment (getArgs)
 
-import Scheme.Error
-import Scheme.Eval (eval)
-import Scheme.Parser (readExpr)
+import Scheme.IO
 
 main :: IO ()
-main = do
-    args <- getArgs
-    evaled <- return $ liftM show $ readExpr (args !! 0) >>= eval
-    putStrLn $ extractValue $ trapError evaled
+main = do args <- getArgs
+          case length args of
+            0 -> runRepl
+            1 -> evalAndPrint $ args !! 0
+            _ -> putStrLn "Only 0 or 1 arguments allowed"
