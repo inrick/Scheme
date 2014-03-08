@@ -2,7 +2,7 @@
 module Scheme.Eval where
 
 import qualified Data.Map as M
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative ((<$>), (<*>), liftA2)
 import Control.Monad.Error
 
 import Scheme.Error
@@ -174,9 +174,7 @@ unpackBool x        = throwError $ TypeMismatch "bool" x
 
 unpackEquals :: LispVal -> LispVal -> Unpacker -> ThrowsError Bool
 unpackEquals x y (Unpacker unpacker) =
-  do ux <- unpacker x
-     uy <- unpacker y
-     return $ ux == uy
+  liftA2 (==) (unpacker x) (unpacker y)
   `catchError` (const $ return False)
 
 equal :: [LispVal] -> ThrowsError LispVal
