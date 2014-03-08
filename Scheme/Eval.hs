@@ -186,5 +186,5 @@ equal [x, y] = do
                      Unpacker unpackStr,
                      Unpacker unpackBool]
   eqvEquals <- eqv [x, y]
-  return . Bool $ primitiveEquals || let (Bool x) = eqvEquals in x
+  return . Bool $ primitiveEquals || let (Bool b) = eqvEquals in b
 equal args = throwError $ NumArgs 2 args
