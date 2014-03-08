@@ -4,25 +4,32 @@ module Scheme.Eval where
 import qualified Data.Map as M
 import Control.Applicative ((<$>), (<*>), liftA2)
 import Control.Monad.Error
+import Data.IORef
 
 import Scheme.Error
 import Scheme.Data
 
-eval :: LispVal -> ThrowsError LispVal
-eval val@(Bool   _) = return val
-eval val@(Number _) = return val
-eval val@(Float  _) = return val
-eval val@(Char   _) = return val
-eval val@(String _) = return val
-eval (List [Atom "quote", val]) = return val
-eval (List [Atom "if", cond, thenBranch, elseBranch]) = do
-  result <- eval cond
+eval :: IORef Env -> LispVal -> IOThrowsError LispVal
+eval _ val@(Bool   _) = return val
+eval _ val@(Number _) = return val
+eval _ val@(Float  _) = return val
+eval _ val@(Char   _) = return val
+eval _ val@(String _) = return val
+eval env (Atom atom) = getVar env atom
+eval _ (List [Atom "quote", val]) = return val
+eval env (List [Atom "set!", Atom var, form]) =
+  eval env form >>= setVar env var
+eval env (List [Atom "define", Atom var, form]) =
+  eval env form >>= defineVar env var
+eval env (List [Atom "if", cond, thenBranch, elseBranch]) = do
+  result <- eval env cond
   case result of
-    Bool True  -> eval thenBranch
-    Bool False -> eval elseBranch
+    Bool True  -> eval env thenBranch
+    Bool False -> eval env elseBranch
     x          -> throwError $ TypeMismatch "bool" x
-eval (List (Atom f : args)) = apply f =<< mapM eval args
-eval invalid = throwError $ BadSpecialForm "Unrecognized special form" invalid
+eval env (List (Atom f : args)) = liftThrows . apply f =<< mapM (eval env) args
+eval _ invalid = throwError $
+                   BadSpecialForm "Unrecognized special form" invalid
 
 apply :: String -> [LispVal] -> ThrowsError LispVal
 apply f args = maybe
@@ -190,3 +197,56 @@ equal [x, y] = do
   eqvEquals <- eqv [x, y]
   return . Bool $ primitiveEquals || let (Bool b) = eqvEquals in b
 equal args = throwError $ NumArgs 2 args
+
+type Env = M.Map String (IORef LispVal)
+
+type IOThrowsError = ErrorT LispError IO
+
+liftThrows :: ThrowsError a -> IOThrowsError a
+liftThrows (Left  err) = throwError err
+liftThrows (Right val) = return val
+
+nullEnv :: IO (IORef Env)
+nullEnv = newIORef M.empty
+
+runIOThrows :: IOThrowsError String -> IO String
+runIOThrows action = runErrorT (trapError action) >>= return . extractValue
+
+isBound :: IORef Env -> String -> IO Bool
+isBound envRef var = readIORef envRef >>= return . M.member var
+
+getVar :: IORef Env -> String -> IOThrowsError LispVal
+getVar envRef var = do
+  env <- liftIO . readIORef $ envRef
+  maybe (throwError $ UnboundVar "Getting an unbound variable" var)
+        (liftIO . readIORef)
+        (M.lookup var env)
+
+setVar :: IORef Env -> String -> LispVal -> IOThrowsError LispVal
+setVar envRef var val = do
+  env <- liftIO . readIORef $ envRef
+  maybe (throwError $ UnboundVar "Setting an unbound variable" var)
+        (liftIO . flip writeIORef val)
+        (M.lookup var env)
+  return val
+
+defineVar :: IORef Env -> String -> LispVal -> IOThrowsError LispVal
+defineVar envRef var val = do
+  bound <- liftIO $ isBound envRef var
+  if bound then
+    setVar envRef var val >> return val
+  else
+    liftIO $ do
+      valRef <- newIORef val
+      env <- readIORef envRef
+      writeIORef envRef (M.insert var valRef env)
+      return val
+
+bindVars :: IORef Env -> [(String, LispVal)] -> IO (IORef Env)
+bindVars envRef bindings = readIORef envRef >>= extendEnv >>= newIORef
+  where
+    extendEnv env = flip M.union env <$> newBindings
+    newBindings = M.fromList <$>
+                    forM bindings (\(var, val) -> do
+                      ref <- newIORef val
+                      return (var, ref))

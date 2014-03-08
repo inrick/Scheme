@@ -1,24 +1,11 @@
 module Scheme.IO where
 
-import Control.Monad.Error
+import Control.Monad (liftM)
 import Data.IORef
 import System.IO
 
-import Scheme.Data
 import Scheme.Eval
-import Scheme.Error
 import Scheme.Parser
-
-type Env = IORef [(String, IORef LispVal)]
-
-type IOThrowsError = ErrorT LispError IO
-
-liftThrows :: ThrowsError a -> IOThrowsError a
-liftThrows (Left err) = throwError err
-liftThrows (Right val) = return val
-
-nullEnv :: IO Env
-nullEnv = newIORef []
 
 flushStr :: String -> IO ()
 flushStr s = putStr s >> hFlush stdout
@@ -26,12 +13,12 @@ flushStr s = putStr s >> hFlush stdout
 readPrompt :: String -> IO String
 readPrompt prompt = flushStr prompt >> getLine
 
-evalString :: String -> IO String
-evalString expr = return . extractValue . trapError $
-                    liftM show (readExpr expr >>= eval)
+evalString :: IORef Env -> String -> IO String
+evalString env expr = runIOThrows $
+                        liftM show ((liftThrows $ readExpr expr) >>= eval env)
 
-evalAndPrint :: String -> IO ()
-evalAndPrint expr = evalString expr >>= putStrLn
+evalAndPrint :: IORef Env -> String -> IO ()
+evalAndPrint env expr = evalString env expr >>= putStrLn
 
 until_ :: Monad m => (a -> Bool) -> m a -> (a -> m ()) -> m ()
 until_ predicate prompt action = do
@@ -41,5 +28,9 @@ until_ predicate prompt action = do
   else
     action result >> until_ predicate prompt action
 
+runOne :: String -> IO ()
+runOne expr = do env <- nullEnv
+                 evalAndPrint env expr
+
 runRepl :: IO ()
-runRepl = until_ (== "quit") (readPrompt "λ> ") evalAndPrint
+runRepl = nullEnv >>= until_ (== "quit") (readPrompt "λ> ") . evalAndPrint
