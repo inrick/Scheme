@@ -18,8 +18,9 @@ eval (List [Atom "quote", val]) = return val
 eval (List [Atom "if", cond, thenBranch, elseBranch]) = do
   result <- eval cond
   case result of
+    Bool True  -> eval thenBranch
     Bool False -> eval elseBranch
-    _          -> eval thenBranch
+    x          -> throwError $ TypeMismatch "bool" x
 eval (List (Atom f : args)) = apply f =<< mapM eval args
 eval invalid = throwError $ BadSpecialForm "Unrecognized special form" invalid
 
