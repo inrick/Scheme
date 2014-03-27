@@ -29,9 +29,13 @@ until_ predicate prompt action = do
   else
     action result >> until_ predicate prompt action
 
-runOne :: String -> IO ()
-runOne expr = do env <- primBinds
-                 evalAndPrint env expr
+runOne :: [String] -> IO ()
+runOne args = do
+  env <- primBinds >>=
+    flip bindVars [("args", List . map String . drop 1 $ args)]
+  (runIOThrows . liftM show . eval env $
+    List [Atom "load", String $ args !! 0])
+    >>= hPutStrLn stderr
 
 runRepl :: IO ()
 runRepl = primBinds >>= until_ (== "quit") (readPrompt "λ> ") . evalAndPrint
