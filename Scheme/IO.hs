@@ -4,6 +4,7 @@ import Control.Monad (liftM)
 import Data.IORef
 import System.IO
 
+import Scheme.Data
 import Scheme.Eval
 import Scheme.Parser
 
@@ -29,8 +30,8 @@ until_ predicate prompt action = do
     action result >> until_ predicate prompt action
 
 runOne :: String -> IO ()
-runOne expr = do env <- nullEnv
+runOne expr = do env <- primBinds
                  evalAndPrint env expr
 
 runRepl :: IO ()
-runRepl = nullEnv >>= until_ (== "quit") (readPrompt "λ> ") . evalAndPrint
+runRepl = primBinds >>= until_ (== "quit") (readPrompt "λ> ") . evalAndPrint

@@ -1,4 +1,4 @@
-module Scheme.Parser (readExpr) where
+module Scheme.Parser (readExpr, readExprList) where
 
 import Data.Char (digitToInt)
 import Control.Applicative ((<$>), (<*>), (*>))
@@ -6,14 +6,19 @@ import Control.Monad.Error
 import Text.ParserCombinators.Parsec hiding (spaces)
 import Numeric (readFloat, readHex, readOct, readInt)
 
-import Scheme.Error
 import Scheme.Data
 
 symbol :: Parser Char
 symbol = oneOf "!$&|*+-/:<=?>@^_~"
 
 readExpr :: String -> ThrowsError LispVal
-readExpr input = case parse parseExpr "lisp" input of
+readExpr = readOrThrow parseExpr
+
+readExprList :: String -> ThrowsError [LispVal]
+readExprList = readOrThrow (endBy parseExpr spaces)
+
+readOrThrow :: Parser a -> String -> ThrowsError a
+readOrThrow parser input = case parse parser "lisp" input of
   Left  err -> throwError . Parser $ err
   Right val -> return val
 

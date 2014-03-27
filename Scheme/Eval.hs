@@ -1,13 +1,14 @@
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ExistentialQuantification, NamedFieldPuns #-}
 module Scheme.Eval where
 
 import qualified Data.Map as M
 import Control.Applicative ((<$>), (<*>), liftA2)
 import Control.Monad.Error
 import Data.IORef
+import System.IO
 
-import Scheme.Error
 import Scheme.Data
+import Scheme.Parser
 
 eval :: IORef Env -> LispVal -> IOThrowsError LispVal
 eval _ val@(Bool   _) = return val
@@ -26,18 +27,51 @@ eval env (List [Atom "if", cond, thenBranch, elseBranch]) = do
   case result of
     Bool True  -> eval env thenBranch
     Bool False -> eval env elseBranch
-    x          -> throwError $ TypeMismatch "bool" x
-eval env (List (Atom f : args)) = liftThrows . apply f =<< mapM (eval env) args
+    _          -> throwError $ TypeMismatch "bool" result
+eval env (List (Atom "define" : List (Atom var : params) : body)) =
+  makeNormalFunc env params body >>= defineVar env var
+eval env (List (Atom "define" : DottedList (Atom var : params) varargs : body)) =
+  makeVarargs varargs env params body >>= defineVar env var
+eval env (List (Atom "lambda" : List params : body)) =
+  makeNormalFunc env params body
+eval env (List (Atom "lambda" : DottedList params varargs : body)) =
+  makeVarargs varargs env params body
+eval env (List (Atom "lambda" : varargs@(Atom _) : body)) =
+  makeVarargs varargs env [] body
+eval env (List [Atom "load", String filename]) =
+  load filename >>= liftM last . mapM (eval env)
+eval env (List (function : args)) = do
+  f <- eval env function
+  argVals <- mapM (eval env) args
+  apply f argVals
 eval _ invalid = throwError $
                    BadSpecialForm "Unrecognized special form" invalid
 
-apply :: String -> [LispVal] -> ThrowsError LispVal
-apply f args = maybe
-  (throwError $ NotFunction "Unrecognized primitive function args" f)
-  ($ args)
-  (M.lookup f primitives)
+apply :: LispVal -> [LispVal] -> IOThrowsError LispVal
+apply (PrimitiveFunc f) args = liftThrows $ f args
+apply (Func params vararg body closure) args =
+  if nParams /= nArgs && vararg == Nothing then
+    throwError $ NumArgs (toInteger nParams) args
+  else
+    (liftIO . bindVars closure $ zip params args) >>=
+    bindVarArgs vararg >>=
+    evalBody
+  where
+    nParams = length params
+    nArgs = length args
+    remainingArgs = drop nParams args
+    evalBody env = liftM last . mapM (eval env) $ body
+    bindVarArgs arg env = case arg of
+      Just argName -> liftIO $ bindVars env [(argName, List remainingArgs)]
+      Nothing      -> return env
+apply (IOFunc f) args = f args
+apply _ _ = error "Invalid use of apply"
 
-type LispEnvironment = M.Map String ([LispVal] -> ThrowsError LispVal)
+primBinds :: IO (IORef Env)
+primBinds = nullEnv >>=
+  (flip bindVars . M.toList $ M.union
+     (M.map (\f -> PrimitiveFunc f) $ primitives)
+     (M.map (\f -> IOFunc f) $ ioPrimitives))
 
 primitives :: LispEnvironment
 primitives = M.fromList [("+",              numBinop (+)),
@@ -198,10 +232,6 @@ equal [x, y] = do
   return . Bool $ primitiveEquals || let (Bool b) = eqvEquals in b
 equal args = throwError $ NumArgs 2 args
 
-type Env = M.Map String (IORef LispVal)
-
-type IOThrowsError = ErrorT LispError IO
-
 liftThrows :: ThrowsError a -> IOThrowsError a
 liftThrows (Left  err) = throwError err
 liftThrows (Right val) = return val
@@ -242,6 +272,7 @@ defineVar envRef var val = do
       writeIORef envRef (M.insert var valRef env)
       return val
 
+-- TODO Rewrite so that bindings is a Map String LispVal
 bindVars :: IORef Env -> [(String, LispVal)] -> IO (IORef Env)
 bindVars envRef bindings = readIORef envRef >>= extendEnv >>= newIORef
   where
@@ -250,3 +281,63 @@ bindVars envRef bindings = readIORef envRef >>= extendEnv >>= newIORef
                     forM bindings (\(var, val) -> do
                       ref <- newIORef val
                       return (var, ref))
+
+makeFunc :: Maybe String -> IORef Env -> [LispVal] -> [LispVal] ->
+            IOThrowsError LispVal
+makeFunc varargs env params body = return $
+  Func (map show params) varargs body env
+
+makeNormalFunc :: IORef Env -> [LispVal] -> [LispVal] -> IOThrowsError LispVal
+makeNormalFunc = makeFunc Nothing
+
+makeVarargs :: LispVal -> IORef Env -> [LispVal] -> [LispVal] ->
+               IOThrowsError LispVal
+makeVarargs = makeFunc . Just . show
+
+ioPrimitives :: M.Map String ([LispVal] -> IOThrowsError LispVal)
+ioPrimitives = M.fromList [("apply",             applyProc),
+                           ("open-input-file",   makePort ReadMode),
+                           ("open-output-file",  makePort WriteMode),
+                           ("close-input-port",  closePort),
+                           ("close-output-port", closePort),
+                           ("read",              readProc),
+                           ("write",             writeProc),
+                           ("read-contents",     readContents),
+                           ("read-all",          readAll)]
+
+applyProc :: [LispVal] -> IOThrowsError LispVal
+applyProc [func, List args] = apply func args
+applyProc (func : args)     = apply func args
+applyProc []                = error "Invalid use of applyProc"
+
+makePort :: IOMode -> [LispVal] -> IOThrowsError LispVal
+makePort mode [String filename] = liftM Port . liftIO $ openFile filename mode
+makePort _ _ = error "Invalid use of makePort"
+
+closePort :: [LispVal] -> IOThrowsError LispVal
+closePort [Port port] = liftIO $ hClose port >> (return $ Bool True)
+closePort _ = return $ Bool False
+
+readProc :: [LispVal] -> IOThrowsError LispVal
+readProc [] = readProc [Port stdin]
+readProc [Port port] = (liftIO $ hGetLine port) >>= liftThrows . readExpr
+readProc xs = throwError $ NumArgs 1 xs
+
+writeProc :: [LispVal] -> IOThrowsError LispVal
+writeProc [obj] = writeProc [obj, Port stdout]
+writeProc [obj, Port port] = liftIO $ hPrint port obj >> (return $ Bool True)
+writeProc [] = throwError $ NumArgs 2 []
+writeProc xs = throwError $ NumArgs 2 xs
+
+readContents :: [LispVal] -> IOThrowsError LispVal
+readContents [String filename] = liftM String . liftIO . readFile $ filename
+readContents [x] = throwError $ TypeMismatch "string" x
+readContents xs  = throwError $ NumArgs 1 xs
+
+load :: String -> IOThrowsError [LispVal]
+load filename = (liftIO $ readFile filename) >>= liftThrows . readExprList
+
+readAll :: [LispVal] -> IOThrowsError LispVal
+readAll [String filename] = liftM List $ load filename
+readAll [x] = throwError $ TypeMismatch "string" x
+readAll xs  = throwError $ NumArgs 1 xs

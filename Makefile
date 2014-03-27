@@ -1,5 +1,4 @@
 SOURCES = Scheme/Data.hs \
-	  Scheme/Error.hs \
 	  Scheme/Eval.hs \
 	  Scheme/IO.hs \
 	  Scheme/Parser.hs \
