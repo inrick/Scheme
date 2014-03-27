@@ -69,44 +69,44 @@ apply _ _ = error "Invalid use of apply"
 
 primBinds :: IO (IORef Env)
 primBinds = nullEnv >>=
-  (flip bindVars . M.toList $ M.union
-     (M.map (\f -> PrimitiveFunc f) $ primitives)
-     (M.map (\f -> IOFunc f) $ ioPrimitives))
+  (flip bindVars $ (++)
+     (map (\(s,f) -> (s, PrimitiveFunc f)) $ primitives)
+     (map (\(s,f) -> (s, IOFunc f)) $ ioPrimitives))
 
 primitives :: LispEnvironment
-primitives = M.fromList [("+",              numBinop (+)),
-                         ("-",              numBinop (-)),
-                         ("*",              numBinop (*)),
-                         ("/",              numBinop div),
-                         ("%",              numBinop mod),
-                         ("quotient",       numBinop quot),
-                         ("remainder",      numBinop rem),
-                         ("boolean?",       isBool),
-                         ("number?",        isNum),
-                         ("string?",        isString),
-                         ("symbol?",        isSym),
-                         ("symbol->string", sym2str),
-                         ("string->symbol", str2sym),
-                         ("not",            lispNot),
-                         ("=",              numBoolBinop (==)),
-                         ("<",              numBoolBinop (<)),
-                         (">",              numBoolBinop (>)),
-                         ("/=",             numBoolBinop (/=)),
-                         (">=",             numBoolBinop (>=)),
-                         ("<=",             numBoolBinop (<=)),
-                         ("&&",             boolBoolBinop (&&)),
-                         ("||",             boolBoolBinop (||)),
-                         ("string=?",       strBoolBinop (==)),
-                         ("string<?",       strBoolBinop (<)),
-                         ("string>?",       strBoolBinop (>)),
-                         ("string<=?",      strBoolBinop (<=)),
-                         ("string>=?",      strBoolBinop (>=)),
-                         ("car",            car),
-                         ("cdr",            cdr),
-                         ("cons",           cons),
-                         ("eq?",            eqv),
-                         ("eqv?",           eqv),
-                         ("equal?",         equal)]
+primitives = [("+",              numBinop (+)),
+              ("-",              numBinop (-)),
+              ("*",              numBinop (*)),
+              ("/",              numBinop div),
+              ("%",              numBinop mod),
+              ("quotient",       numBinop quot),
+              ("remainder",      numBinop rem),
+              ("boolean?",       isBool),
+              ("number?",        isNum),
+              ("string?",        isString),
+              ("symbol?",        isSym),
+              ("symbol->string", sym2str),
+              ("string->symbol", str2sym),
+              ("not",            lispNot),
+              ("=",              numBoolBinop (==)),
+              ("<",              numBoolBinop (<)),
+              (">",              numBoolBinop (>)),
+              ("/=",             numBoolBinop (/=)),
+              (">=",             numBoolBinop (>=)),
+              ("<=",             numBoolBinop (<=)),
+              ("&&",             boolBoolBinop (&&)),
+              ("||",             boolBoolBinop (||)),
+              ("string=?",       strBoolBinop (==)),
+              ("string<?",       strBoolBinop (<)),
+              ("string>?",       strBoolBinop (>)),
+              ("string<=?",      strBoolBinop (<=)),
+              ("string>=?",      strBoolBinop (>=)),
+              ("car",            car),
+              ("cdr",            cdr),
+              ("cons",           cons),
+              ("eq?",            eqv),
+              ("eqv?",           eqv),
+              ("equal?",         equal)]
   where
     isBool [Bool _] = return $ Bool True
     isBool [_]      = return $ Bool False
@@ -272,7 +272,6 @@ defineVar envRef var val = do
       writeIORef envRef (M.insert var valRef env)
       return val
 
--- TODO Rewrite so that bindings is a Map String LispVal
 bindVars :: IORef Env -> [(String, LispVal)] -> IO (IORef Env)
 bindVars envRef bindings = readIORef envRef >>= extendEnv >>= newIORef
   where
@@ -294,16 +293,16 @@ makeVarargs :: LispVal -> IORef Env -> [LispVal] -> [LispVal] ->
                IOThrowsError LispVal
 makeVarargs = makeFunc . Just . show
 
-ioPrimitives :: M.Map String ([LispVal] -> IOThrowsError LispVal)
-ioPrimitives = M.fromList [("apply",             applyProc),
-                           ("open-input-file",   makePort ReadMode),
-                           ("open-output-file",  makePort WriteMode),
-                           ("close-input-port",  closePort),
-                           ("close-output-port", closePort),
-                           ("read",              readProc),
-                           ("write",             writeProc),
-                           ("read-contents",     readContents),
-                           ("read-all",          readAll)]
+ioPrimitives :: [(String, [LispVal] -> IOThrowsError LispVal)]
+ioPrimitives = [("apply",             applyProc),
+                ("open-input-file",   makePort ReadMode),
+                ("open-output-file",  makePort WriteMode),
+                ("close-input-port",  closePort),
+                ("close-output-port", closePort),
+                ("read",              readProc),
+                ("write",             writeProc),
+                ("read-contents",     readContents),
+                ("read-all",          readAll)]
 
 applyProc :: [LispVal] -> IOThrowsError LispVal
 applyProc [func, List args] = apply func args

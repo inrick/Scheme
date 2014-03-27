@@ -7,7 +7,7 @@ import Text.ParserCombinators.Parsec (ParseError)
 import System.IO (Handle)
 import qualified Data.Map as M
 
-type LispEnvironment = M.Map String ([LispVal] -> ThrowsError LispVal)
+type LispEnvironment = [(String, [LispVal] -> ThrowsError LispVal)]
 
 type Env = M.Map String (IORef LispVal)
 
