@@ -15,8 +15,9 @@ readPrompt :: String -> IO String
 readPrompt prompt = flushStr prompt >> getLine
 
 evalString :: IORef Env -> String -> IO String
-evalString env expr = runIOThrows $
-                        liftM show ((liftThrows $ readExpr expr) >>= eval env)
+evalString env expr = runEval env . liftM show $ do
+                        expr' <- liftError $ readExpr expr
+                        eval expr'
 
 evalAndPrint :: IORef Env -> String -> IO ()
 evalAndPrint env expr = evalString env expr >>= putStrLn
@@ -31,11 +32,11 @@ until_ predicate prompt action = do
 
 runOne :: [String] -> IO ()
 runOne args = do
-  env <- primBinds >>=
-    flip bindVars [("args", List . map String . drop 1 $ args)]
-  (runIOThrows . liftM show . eval env $
-    List [Atom "load", String $ args !! 0])
-    >>= hPutStrLn stderr
+  env <- do prims <- primBinds
+            bindVars prims [("args", List . map String . drop 1 $ args)]
+  result <- runEval env . liftM show . eval $
+              List [Atom "load", String $ args !! 0]
+  hPutStrLn stderr result
 
 runRepl :: IO ()
 runRepl = primBinds >>= until_ (== "quit") (readPrompt "λ> ") . evalAndPrint

@@ -3,15 +3,14 @@ module Scheme.Data where
 
 import Data.IORef
 import Control.Monad.Error
+import Control.Monad.Reader
 import Text.ParserCombinators.Parsec (ParseError)
 import System.IO (Handle)
 import qualified Data.Map as M
 
-type LispEnvironment = [(String, [LispVal] -> ThrowsError LispVal)]
-
 type Env = M.Map String (IORef LispVal)
-
-type IOThrowsError = ErrorT LispError IO
+type LError = Either LispError
+type Eval   = ReaderT (IORef Env) (ErrorT LispError IO)
 
 data LispVal = Atom String
              | List [LispVal]
@@ -21,12 +20,12 @@ data LispVal = Atom String
              | Char Char
              | String String
              | Bool Bool
-             | PrimitiveFunc ([LispVal] -> ThrowsError LispVal)
+             | PrimitiveFunc ([LispVal] -> LError LispVal)
              | Func { params  :: [String],
                       vararg  :: Maybe String,
                       body    :: [LispVal],
                       closure :: IORef Env }
-             | IOFunc ([LispVal] -> IOThrowsError LispVal)
+             | IOFunc ([LispVal] -> Eval LispVal)
              | Port Handle
 
 unwordsList :: [LispVal] -> String
@@ -81,6 +80,6 @@ type ThrowsError = Either LispError
 trapError :: (Show e, MonadError e m) => m String -> m String
 trapError action = catchError action (return . show)
 
-extractValue :: ThrowsError a -> a
+extractValue :: Either a b -> b
 extractValue (Right val) = val
 extractValue (Left  _)   = error "Invalid usage of extractValue"

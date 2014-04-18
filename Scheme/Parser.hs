@@ -11,16 +11,17 @@ import Scheme.Data
 symbol :: Parser Char
 symbol = oneOf "!$&|*+-/:<=?>@^_~"
 
-readExpr :: String -> ThrowsError LispVal
-readExpr = readOrThrow parseExpr
+readExpr :: String -> LError LispVal
+readExpr = tryRead parseExpr
 
-readExprList :: String -> ThrowsError [LispVal]
-readExprList = readOrThrow (endBy parseExpr spaces)
+readExprList :: String -> LError [LispVal]
+readExprList = tryRead $ parseExpr `endBy` spaces
 
-readOrThrow :: Parser a -> String -> ThrowsError a
-readOrThrow parser input = case parse parser "lisp" input of
-  Left  err -> throwError . Parser $ err
-  Right val -> return val
+tryRead :: Parser a -> String -> LError a
+tryRead parser input =
+  case parse parser "lisp" input of
+    Left  err -> throwError . Parser $ err
+    Right val -> return val
 
 spaces :: Parser ()
 spaces = skipMany1 space
