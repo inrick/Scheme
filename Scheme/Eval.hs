@@ -65,7 +65,7 @@ apply (Func params vararg body closure) args =
         Just argName -> liftIO $ bindVars env [(argName, List remainingArgs)]
         Nothing      -> return env
 apply (IOFunc f) args = f args
-apply _ _ = error "Invalid use of apply"
+apply f _ = throwError $ NotFunction "Not a function" f
 
 primBinds :: IO Env
 primBinds = nullEnv >>=
