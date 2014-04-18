@@ -75,8 +75,6 @@ instance Error LispError where
   noMsg  = Default "An error has occurred"
   strMsg = Default
 
-type ThrowsError = Either LispError
-
 trapError :: (Show e, MonadError e m) => m String -> m String
 trapError action = action `catchError` (return . show)
 
