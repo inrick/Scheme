@@ -67,7 +67,7 @@ apply (Func params vararg body closure) args =
 apply (IOFunc f) args = f args
 apply _ _ = error "Invalid use of apply"
 
-primBinds :: IO (IORef Env)
+primBinds :: IO Env
 primBinds = nullEnv >>=
   (flip bindVars $
      (map (\(s,f) -> (s, PrimitiveFunc f)) $ primitives) ++
@@ -236,15 +236,15 @@ liftError :: LError a -> Eval a
 liftError (Left  err) = throwError err
 liftError (Right val) = return val
 
-nullEnv :: IO (IORef Env)
+nullEnv :: IO Env
 nullEnv = newIORef M.empty
 
-runEval :: IORef Env -> Eval String -> IO String
+runEval :: Env -> Eval String -> IO String
 runEval env action = do
   val <- runErrorT . trapError $ runReaderT action env
   return . extractValue $ val
 
-isBound :: IORef Env -> String -> IO Bool
+isBound :: Env -> String -> IO Bool
 isBound envRef var = readIORef envRef >>= return . M.member var
 
 getVar :: String -> Eval LispVal
@@ -277,7 +277,7 @@ defineVar var val = do
       writeIORef envRef (M.insert var valRef env)
       return val
 
-bindVars :: IORef Env -> [(String, LispVal)] -> IO (IORef Env)
+bindVars :: Env -> [(String, LispVal)] -> IO Env
 bindVars envRef bindings = readIORef envRef >>= extendEnv >>= newIORef
   where
     extendEnv env = flip M.union env <$> newBindings

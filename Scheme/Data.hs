@@ -8,9 +8,9 @@ import Text.ParserCombinators.Parsec (ParseError)
 import System.IO (Handle)
 import qualified Data.Map as M
 
-type Env = M.Map String (IORef LispVal)
+type Env    = IORef (M.Map String (IORef LispVal))
 type LError = Either LispError
-type Eval   = ReaderT (IORef Env) (ErrorT LispError IO)
+type Eval   = ReaderT Env (ErrorT LispError IO)
 
 data LispVal = Atom String
              | List [LispVal]
@@ -24,7 +24,7 @@ data LispVal = Atom String
              | Func { params  :: [String],
                       vararg  :: Maybe String,
                       body    :: [LispVal],
-                      closure :: IORef Env }
+                      closure :: Env }
              | IOFunc ([LispVal] -> Eval LispVal)
              | Port Handle
 

@@ -1,7 +1,6 @@
 module Scheme.IO where
 
 import Control.Monad (liftM)
-import Data.IORef
 import System.IO
 
 import Scheme.Data
@@ -14,12 +13,12 @@ flushStr s = putStr s >> hFlush stdout
 readPrompt :: String -> IO String
 readPrompt prompt = flushStr prompt >> getLine
 
-evalString :: IORef Env -> String -> IO String
+evalString :: Env -> String -> IO String
 evalString env expr = runEval env . liftM show $ do
                         expr' <- liftError $ readExpr expr
                         eval expr'
 
-evalAndPrint :: IORef Env -> String -> IO ()
+evalAndPrint :: Env -> String -> IO ()
 evalAndPrint env expr = evalString env expr >>= putStrLn
 
 until_ :: Monad m => (a -> Bool) -> m a -> (a -> m ()) -> m ()
