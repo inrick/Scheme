@@ -3,7 +3,7 @@ module Scheme.Eval where
 
 import qualified Data.Map as M
 import Control.Applicative ((<$>), (<*>), liftA2)
-import Control.Monad.Error
+import Control.Monad.Except
 import Control.Monad.Reader
 import Data.IORef
 import System.IO
@@ -241,7 +241,7 @@ nullEnv = newIORef M.empty
 
 runEval :: Env -> Eval String -> IO String
 runEval env action = do
-  val <- runErrorT . trapError $ runReaderT action env
+  val <- runExceptT . trapError $ runReaderT action env
   return . extractValue $ val
 
 isBound :: Env -> String -> IO Bool

@@ -2,7 +2,7 @@
 module Scheme.Data where
 
 import Data.IORef
-import Control.Monad.Error
+import Control.Monad.Except
 import Control.Monad.Reader
 import Text.ParserCombinators.Parsec (ParseError)
 import System.IO (Handle)
@@ -10,7 +10,7 @@ import qualified Data.Map as M
 
 type Env    = IORef (M.Map String (IORef LispVal))
 type LError = Either LispError
-type Eval   = ReaderT Env (ErrorT LispError IO)
+type Eval   = ReaderT Env (ExceptT LispError IO)
 
 data LispVal = Atom String
              | List [LispVal]
@@ -70,10 +70,6 @@ instance Show LispError where
   show (UnboundVar msg var) = msg ++ ": " ++ var
   show (NotFunction msg f) = msg ++ ": " ++ show f
   show (Default msg) = msg
-
-instance Error LispError where
-  noMsg  = Default "An error has occurred"
-  strMsg = Default
 
 trapError :: (Show e, MonadError e m) => m String -> m String
 trapError action = action `catchError` (return . show)
