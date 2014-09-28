@@ -173,8 +173,8 @@ unpackNum x          = throwError $ TypeMismatch "number" x
 
 unpackStr :: LispVal -> ThrowsError String
 unpackStr (String s) = return s
-unpackStr (Number s) = return $ show s
-unpackStr (Bool s)   = return $ show s
+unpackStr (Number n) = return $ show n
+unpackStr (Bool   b) = return $ show b
 unpackStr x          = throwError $ TypeMismatch "string" x
 
 unpackBool :: LispVal -> ThrowsError Bool
